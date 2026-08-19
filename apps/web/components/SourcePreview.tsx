@@ -1,6 +1,6 @@
 import { StatusBadge } from "./StatusBadge";
 import type { SourcePreviewData } from "./types";
-import { sourceLabel } from "./types";
+import { lifecycleState, sourceLabel } from "./types";
 
 interface SourcePreviewProps {
   preview: SourcePreviewData | null;
@@ -30,17 +30,17 @@ export function SourcePreview({ preview, onClose }: SourcePreviewProps) {
               <h3>{preview.title}</h3>
               <p className="meta">{sourceLabel(preview.sourceType)} · {preview.locator}</p>
             </div>
-            <StatusBadge state={preview.lifecycleState} />
+            <StatusBadge state={lifecycleState(preview.lifecycleState)} />
           </div>
           <p className="preview-excerpt">{preview.excerpt}</p>
           <dl className="metric-list">
-            <div><dt className="data-label">Request check</dt><dd><StatusBadge state={preview.recheckState} /></dd></div>
-            <div><dt className="data-label">Updated</dt><dd className="meta">{preview.updatedAt}</dd></div>
+            <div><dt className="data-label">Request check</dt><dd><StatusBadge state={lifecycleState(preview.lifecycleState)} /></dd></div>
+            <div><dt className="data-label">Updated</dt><dd className="meta">{preview.sourceUpdatedAt ?? "Unavailable"}</dd></div>
             <div><dt className="data-label">Indexed</dt><dd className="meta">{preview.indexedAt}</dd></div>
           </dl>
           <div className="result-actions">
             <span className="meta">{preview.itemId}</span>
-            <a className="text-button" href={preview.deepLink} target="_blank" rel="noreferrer">Open source ↗</a>
+            {preview.canonicalUrl && <a className="text-button" href={preview.canonicalUrl} target="_blank" rel="noreferrer">Open source ↗</a>}
           </div>
         </>
       )}

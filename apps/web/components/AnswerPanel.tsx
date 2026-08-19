@@ -26,7 +26,7 @@ export function AnswerPanel({ answer, onOpenCitation }: AnswerPanelProps) {
         </div>
       ) : (
         <>
-          <p className="answer-copy">{answer.text}</p>
+          <p className="answer-copy">{answer.answerText}</p>
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Provenance first</p>
@@ -49,7 +49,7 @@ export function AnswerPanel({ answer, onOpenCitation }: AnswerPanelProps) {
             ))}
           </ol>
           <div className="chip-row" aria-label="Answer freshness and caveats">
-            <StatusBadge state={answer.freshness} />
+            <StatusBadge state={answer.freshness === "mixed" ? "stale" : answer.freshness === "unknown" ? "unavailable" : answer.freshness} />
             {answer.caveats.map((caveat) => <span className="source-chip" key={caveat}>{caveat}</span>)}
           </div>
           <div className="feedback-row" aria-label="Answer feedback">
