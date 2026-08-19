@@ -17,7 +17,7 @@ class Settings:
     database_url: str | None = None
     opensearch_url: str | None = None
     redis_url: str | None = None
-    next_public_api_base_url: str = "http://localhost:8000"
+    next_public_api_base_url: str = "/api"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -32,6 +32,6 @@ class Settings:
             opensearch_url=os.getenv("OPENSEARCH_URL") or None,
             redis_url=os.getenv("REDIS_URL") or None,
             next_public_api_base_url=os.getenv(
-                "NEXT_PUBLIC_API_BASE_URL", "http://localhost:8000"
+                "NEXT_PUBLIC_API_BASE_URL", "/api"
             ),
         )

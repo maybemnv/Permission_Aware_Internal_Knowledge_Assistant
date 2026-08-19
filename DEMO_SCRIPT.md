@@ -8,7 +8,7 @@ Use only the seeded demo tenant and demo principals. Do not paste client content
 
 ## Preflight
 
-1. Start the API and web app using the commands in [README.md](README.md). The API/web entrypoints and fixture worker modules are present; a long-lived queue runner remains deployment-specific.
+1. Start the fixture stack with `docker compose --profile fixture up --build -d` from [README.md](README.md). It binds FastAPI to `8102` and the web app to `3102`; no durable services or provider credentials are required.
 2. Check `GET /health` and `GET /health/ready`. Confirm that readiness exposes service state only, not content, ACL payloads, embeddings, or secrets.
 3. Confirm the selected principal is one of `allowed-user`, `denied-user`, `unmapped-user`, `changed-group-user`, `cross-tenant-user`, or `admin-user`, and that the UI is pointed at the intended API origin.
 4. Open the connector/admin surface and note which cards are `fixture`, `blocked`, or `unverified`. Do not call a fixture card live.
@@ -96,7 +96,13 @@ Use [RUNBOOK.md](RUNBOOK.md) to classify the failure before changing data. Captu
 
 ## Post-demo reset
 
-Fixture mode is in memory. Stop and restart the API process to rebuild its deterministic `FixtureStore`. For a disposable PostgreSQL demo, reset only after confirming the database target:
+Fixture mode is in memory. Reset the default showcase without deleting data by restarting only the API:
+
+```powershell
+docker compose --profile fixture restart api
+```
+
+For a disposable PostgreSQL demo, reset only after confirming the database target:
 
 ```powershell
 docker compose down -v

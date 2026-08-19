@@ -86,7 +86,8 @@ def require_admin(demo_principal: str | None) -> PrincipalContext:
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(status="ok", service="api", mode="postgres" if settings.app_mode == "postgres" else "fixture")
+    mode = "postgres" if settings.app_mode == "postgres" else "fixture"
+    return HealthResponse(status="ok", service="fixture-api" if mode == "fixture" else "api", mode=mode)
 
 
 @app.get("/health/ready", response_model=ReadinessResponse)
