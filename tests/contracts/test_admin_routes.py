@@ -13,7 +13,8 @@ def test_fixture_health_and_readiness_identify_the_safe_demo_mode() -> None:
     assert health.json()["service"] == "fixture-api"
     assert health.json()["mode"] == "fixture"
     assert readiness.status_code == 200
-    assert readiness.json()["checks"]["database"] == "ok"
+    assert readiness.json()["checks"]["fixture_store"] == "ok"
+    assert readiness.json()["checks"]["database"] == "unavailable"
     assert "travel" not in f"{health.text} {readiness.text}".lower()
 
 

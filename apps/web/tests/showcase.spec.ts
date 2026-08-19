@@ -34,6 +34,14 @@ test("denied and cross-tenant principals receive safe absence without restricted
 });
 
 test("admin sees live fixture API administration surfaces", async ({ page }) => {
+  const unansweredQuestion = "Which stationery supplies are reimbursable?";
+  await page.goto("/");
+  await selectPrincipal(page, "allowed-user");
+  await page.getByLabel("Ask a question").fill(unansweredQuestion);
+  await page.getByRole("button", { name: "Search evidence" }).click();
+  await page.getByRole("button", { name: "Generate safe answer" }).click();
+  await expect(page.getByText("There is not enough authorized evidence to answer this question.")).toBeVisible();
+
   await page.goto("/admin");
   await selectPrincipal(page, "admin-user");
   await page.getByRole("button", { name: "Refresh connector status" }).click();
@@ -43,6 +51,9 @@ test("admin sees live fixture API administration surfaces", async ({ page }) => 
   await expect(page.getByText(/completed|failed/i).first()).toBeVisible();
   await page.getByRole("tab", { name: "Unanswered" }).click();
   await expect(page.getByRole("heading", { name: "Where evidence is thin" })).toBeVisible();
+  await expect(page.getByText("no_result")).toBeVisible();
+  await expect(page.getByText(/[a-f0-9]{12}/)).toBeVisible();
+  await expect(page.getByText(unansweredQuestion)).toHaveCount(0);
   await page.getByRole("tab", { name: "Evaluation" }).click();
   await page.getByRole("button", { name: "Run fixture evaluation" }).click();
   await expect(page.getByText("Permission leakage")).toBeVisible();

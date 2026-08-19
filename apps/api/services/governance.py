@@ -20,11 +20,12 @@ class GovernanceService:
         query_id: str,
         category: str,
         safe_summary: str,
+        query_fingerprint: str | None = None,
     ) -> UnansweredRecord:
         record = UnansweredRecord(
             query_id=query_id,
             category=category,
-            query_hash=sha256(safe_summary.encode("utf-8")).hexdigest(),
+            query_hash=sha256((query_fingerprint or query_id).encode("utf-8")).hexdigest(),
             created_at=datetime.now(timezone.utc),
             safe_summary=safe_summary[:240],
         )

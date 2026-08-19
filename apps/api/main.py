@@ -92,13 +92,15 @@ def health() -> HealthResponse:
 
 @app.get("/health/ready", response_model=ReadinessResponse)
 def readiness() -> ReadinessResponse:
-    mode_state = "ok" if settings.app_mode == "fixture" or settings.database_url else "degraded"
-    status_value = "ready" if mode_state == "ok" else "degraded"
+    fixture_mode = settings.app_mode == "fixture"
+    database_state = "unavailable" if fixture_mode else ("ok" if settings.database_url else "degraded")
+    status_value = "ready" if fixture_mode or database_state == "ok" else "degraded"
     return ReadinessResponse(
         status=status_value,
         checks={
             "api": "ok",
-            "database": mode_state,
+            "fixture_store": "ok" if fixture_mode else "unavailable",
+            "database": database_state,
             "worker": "ok" if settings.queue_provider == "inline" else "degraded",
             "connectors": "ok",
             "index": "ok" if settings.search_provider == "fixture" else "degraded",
@@ -123,6 +125,7 @@ def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default
                 else "no_result"
             ),
             safe_summary="No safe cited answer was available for this request.",
+            query_fingerprint=" ".join(request.question.casefold().split()),
         )
     return response
 
