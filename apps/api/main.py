@@ -12,6 +12,7 @@ from apps.api.data.fixture_store import FixtureStore
 from apps.api.domain.contracts import (
     AnswerRequest,
     AnswerResponse,
+    AnswerStatus,
     AuditEvent,
     ApiError,
     ApiErrorCode,
@@ -85,18 +86,21 @@ def require_admin(demo_principal: str | None) -> PrincipalContext:
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(status="ok", service="api", mode="postgres" if settings.app_mode == "postgres" else "fixture")
+    mode = "postgres" if settings.app_mode == "postgres" else "fixture"
+    return HealthResponse(status="ok", service="fixture-api" if mode == "fixture" else "api", mode=mode)
 
 
 @app.get("/health/ready", response_model=ReadinessResponse)
 def readiness() -> ReadinessResponse:
-    mode_state = "ok" if settings.app_mode == "fixture" or settings.database_url else "degraded"
-    status_value = "ready" if mode_state == "ok" else "degraded"
+    fixture_mode = settings.app_mode == "fixture"
+    database_state = "unavailable" if fixture_mode else ("ok" if settings.database_url else "degraded")
+    status_value = "ready" if fixture_mode or database_state == "ok" else "degraded"
     return ReadinessResponse(
         status=status_value,
         checks={
             "api": "ok",
-            "database": mode_state,
+            "fixture_store": "ok" if fixture_mode else "unavailable",
+            "database": database_state,
             "worker": "ok" if settings.queue_provider == "inline" else "degraded",
             "connectors": "ok",
             "index": "ok" if settings.search_provider == "fixture" else "degraded",
@@ -111,7 +115,21 @@ def search(request: SearchRequest, x_demo_principal: str | None = Header(default
 
 @app.post("/v1/answers", response_model=AnswerResponse)
 def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")) -> AnswerResponse:
-    return answers.answer(require_principal(x_demo_principal), request)
+    principal = require_principal(x_demo_principal)
+    response = answers.answer(principal, request)
+    if response.status is not AnswerStatus.ANSWERED:
+        governance.record_unanswered(
+            query_id=str(response.query_id),
+            category=(
+                "no_authorized_context"
+                if response.status is AnswerStatus.REFUSED
+                else "no_result"
+            ),
+            safe_summary="No safe cited answer was available for this request.",
+            tenant_id=str(principal.tenant_id),
+            query_fingerprint=" ".join(request.question.casefold().split()),
+        )
+    return response
 
 
 @app.get("/v1/results/{result_id}/preview", response_model=SourcePreview)

@@ -6,6 +6,10 @@ This document separates a client demo, staging, and a production-like deployment
 
 The design names Supabase managed PostgreSQL with pgvector as the preferred database direction. Search, queue, hosting, domains, secret management, monitoring, backups, connector credentials, provider scopes, billing, and TLS remain deployment choices and client-owned verification work.
 
+## Fixture deployment and reset
+
+For the repeatable showcase, run `docker compose --profile fixture up --build -d`. The fixture API binds `8102`, the web app binds `3102`, and the web container reaches the API through server-only `API_ORIGIN=http://api:8102`. Verify `/health`, `/health/ready`, and the web page, then run `npm --prefix apps/web run test:showcase`. `docker compose --profile fixture restart api` rebuilds only the in-memory fixture store; it is the default safe reset. Shut down with `docker compose --profile fixture down`.
+
 ## Deployment tiers
 
 | Tier | Intended use | Database/search | Queue/worker | Evidence boundary |

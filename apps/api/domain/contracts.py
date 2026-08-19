@@ -311,6 +311,7 @@ class ConnectorStatusSummary(ContractModel):
 
 class UnansweredRecord(ContractModel):
     query_id: UUID
+    tenant_id: str
     category: Literal["no_result", "no_authorized_context", "low_citation", "negative_feedback"]
     query_hash: str
     created_at: datetime

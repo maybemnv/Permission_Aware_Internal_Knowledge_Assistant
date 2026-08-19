@@ -3,6 +3,21 @@ from fastapi.testclient import TestClient
 from apps.api.main import app
 
 
+def test_fixture_health_and_readiness_identify_the_safe_demo_mode() -> None:
+    client = TestClient(app)
+
+    health = client.get("/health")
+    readiness = client.get("/health/ready")
+
+    assert health.status_code == 200
+    assert health.json()["service"] == "fixture-api"
+    assert health.json()["mode"] == "fixture"
+    assert readiness.status_code == 200
+    assert readiness.json()["checks"]["fixture_store"] == "ok"
+    assert readiness.json()["checks"]["database"] == "unavailable"
+    assert "travel" not in f"{health.text} {readiness.text}".lower()
+
+
 def test_admin_connector_status_covers_all_eight_sources() -> None:
     response = TestClient(app).get(
         "/v1/connectors",

@@ -18,6 +18,25 @@ Copy `.env.example` to `.env` and fill only the values required for the selected
 
 The fixture mode is the default demo boundary. It must not be presented as proof of provider ACL fidelity, production performance, retention, residency, compliance, or connector parity.
 
+## Fixture showcase stack
+
+The default showcase has no PostgreSQL, OpenSearch, Redis, worker, provider credential, or browser-visible API credential prerequisite. From the repository root, run:
+
+```powershell
+docker compose --profile fixture up --build -d
+Invoke-RestMethod http://localhost:8102/health
+Invoke-RestMethod http://localhost:8102/health/ready
+Invoke-WebRequest http://localhost:3102
+```
+
+Open `http://localhost:3102`, select a fixture principal, and use the canonical travel question. The browser calls FastAPI only through its same-origin server proxy; `API_ORIGIN` is server-only. Restarting the API is the safe fixture reset because it recreates the in-memory store:
+
+```powershell
+docker compose --profile fixture restart api
+npm --prefix apps/web run test:showcase
+docker compose --profile fixture down
+```
+
 ## Fixture seed and reset
 
 Fixture mode is in memory: restarting the API process recreates `FixtureStore` and its deterministic records. For a disposable PostgreSQL run, apply the migration and seed files in order:
@@ -40,12 +59,12 @@ Run each boundary in a separate terminal after the implementation files and depe
 
 ```powershell
 # API; FastAPI entrypoint is present; endpoint execution still requires a live process check
-python -m uvicorn apps.api.main:app --reload --port 8000
+python -m uvicorn apps.api.main:app --reload --port 8102
 
-# Web; package scripts are present; dependency install/build/browser checks remain unverified
+# Web; the fixture lint/build and desktop/mobile browser suite are local verification gates
 Set-Location apps/web
-npm install
-npm run dev
+npm ci
+npm run dev -- --port 3102
 
 # Worker coordinator/index modules; a long-lived queue runner is deployment-specific
 Set-Location ../..
@@ -57,8 +76,8 @@ The web client may receive only the non-secret `NEXT_PUBLIC_API_BASE_URL`. Datab
 Check the API without exposing content:
 
 ```powershell
-Invoke-RestMethod http://localhost:8000/health
-Invoke-RestMethod http://localhost:8000/health/ready
+Invoke-RestMethod http://localhost:8102/health
+Invoke-RestMethod http://localhost:8102/health/ready
 ```
 
 `/health` is liveness. `/health/ready` is readiness and should summarize API, database/fixture, worker, connector, and index state without titles, excerpts, ACL payloads, embeddings, or secrets.
@@ -89,10 +108,11 @@ pytest -q
 Set-Location apps/web
 npm run lint
 npm run build
+npm run test:showcase
 Set-Location ../..
 ```
 
-The focused documentation contract passes locally. Fresh full-suite counts and web build evidence are recorded during final verification; provider, browser, external infrastructure, DNS, TLS, billing, secret-manager, and backup-restore checks remain `unverified` until performed in their target environment. Record exact output and scope before marking an acceptance item as passed.
+The focused documentation contract passes locally. Fresh full-suite, web build, and fixture desktop/mobile browser evidence are recorded during final verification; provider-backed browser validation, external infrastructure, DNS, TLS, billing, secret-manager, and backup-restore checks remain `unverified` until performed in their target environment. Record exact output and scope before marking an acceptance item as passed.
 
 ## Environment variables
 
@@ -130,7 +150,7 @@ Connector-specific names are listed in [deployment.md](deployment.md). They are 
 ## Known limitations
 
 - The local FastAPI, fixture store, migration, seed, web package, connector registry, and worker modules are present. A long-lived queue worker process remains deployment-specific.
-- Live provider execution, browser QA, performance, and external infrastructure remain unverified even when fixture tests pass.
+- Live provider execution, provider-backed browser validation, performance, and external infrastructure remain unverified even when fixture tests pass.
 - All eight connector boundaries are fixture-backed or status-only by design until live provider tests establish scopes, object coverage, change feeds, deletion behavior, and ACL fidelity. See [CONNECTOR_MATRIX.md](CONNECTOR_MATRIX.md).
 - A fixture result does not demonstrate production authorization correctness. Application authorization must remain mandatory even if Supabase Row Level Security is later added as defense in depth.
 - Search may use managed OpenSearch, self-hosted OpenSearch, or PostgreSQL full-text search plus pgvector. Scale, relevance, latency, and operating cost are not verified across those options.

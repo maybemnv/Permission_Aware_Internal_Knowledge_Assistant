@@ -1,5 +1,6 @@
 services:
   postgres:
+    profiles: ["durable"]
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: permission_assistant
@@ -17,6 +18,7 @@ services:
       retries: 12
 
   opensearch:
+    profiles: ["durable"]
     image: opensearchproject/opensearch:2.19.0
     environment:
       discovery.type: single-node
@@ -28,11 +30,39 @@ services:
       - opensearch_data:/usr/share/opensearch/data
 
   redis:
+    profiles: ["durable"]
     image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  api:
+    profiles: ["fixture"]
+    build: .
+    environment:
+      APP_MODE: fixture
+      SEARCH_PROVIDER: fixture
+      QUEUE_PROVIDER: inline
+      MODEL_PROVIDER: fixture
+    ports:
+      - "8102:8102"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/health/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    profiles: ["fixture"]
+    build: ./apps/web
+    environment:
+      API_ORIGIN: http://api:8102
+    ports:
+      - "3102:3102"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:

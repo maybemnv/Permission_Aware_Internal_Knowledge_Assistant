@@ -20,11 +20,14 @@ class GovernanceService:
         query_id: str,
         category: str,
         safe_summary: str,
+        tenant_id: str,
+        query_fingerprint: str | None = None,
     ) -> UnansweredRecord:
         record = UnansweredRecord(
             query_id=query_id,
+            tenant_id=tenant_id,
             category=category,
-            query_hash=sha256(safe_summary.encode("utf-8")).hexdigest(),
+            query_hash=sha256((query_fingerprint or query_id).encode("utf-8")).hexdigest(),
             created_at=datetime.now(timezone.utc),
             safe_summary=safe_summary[:240],
         )
@@ -34,4 +37,4 @@ class GovernanceService:
     def unanswered(self, principal: PrincipalContext | None) -> list[UnansweredRecord]:
         if principal is None or not principal.is_administrator:
             return []
-        return list(self._records)
+        return [record for record in self._records if record.tenant_id == str(principal.tenant_id)]

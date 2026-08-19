@@ -21,10 +21,10 @@ Never turn a fixture result into a live claim. `healthy` means the observed runt
 1. Confirm the checkout and selected database are disposable.
 2. Activate the Python environment and install the project dependencies.
 3. In fixture mode, reset by stopping/restarting the API process; its in-memory `FixtureStore` is rebuilt on process start. For PostgreSQL, use the migration/seed commands in [README.md](README.md) against a disposable database.
-4. Start the API and web app from [README.md](README.md). Treat worker startup as `unverified` until a worker entrypoint and queue implementation exist.
-5. Check `/health` and `/health/ready` before opening the demo.
+4. Run `docker compose --profile fixture up --build -d`; this starts only the fixture API on `8102` and web app on `3102`.
+5. Check `http://localhost:8102/health`, `http://localhost:8102/health/ready`, and `http://localhost:3102` before opening the demo.
 6. Use only seeded principals and the canonical travel-policy question.
-7. Stop the three processes when the demo ends and record any `unverified` checks.
+7. Reset only fixture state with `docker compose --profile fixture restart api`; stop the stack with `docker compose --profile fixture down` when the demo ends.
 
 Never improvise a destructive reset against a shared database. There is no `apps/api/cli.py` reset command in the current checkout.
 
