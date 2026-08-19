@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const apiOrigin = process.env.API_ORIGIN ?? "http://127.0.0.1:8102";
-const principals = new Set(["allowed-user", "denied-user", "cross-tenant-user", "admin-user"]);
+const principals = new Set(["allowed-user", "denied-user", "unmapped-user", "changed-group-user", "cross-tenant-user", "admin-user"]);
 
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;

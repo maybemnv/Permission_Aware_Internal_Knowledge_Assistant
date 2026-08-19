@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const principals = new Set(["allowed-user", "denied-user", "cross-tenant-user", "admin-user"]);
+const principals = new Set(["allowed-user", "denied-user", "unmapped-user", "changed-group-user", "cross-tenant-user", "admin-user"]);
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);

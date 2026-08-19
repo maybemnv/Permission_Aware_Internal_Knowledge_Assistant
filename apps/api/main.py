@@ -115,7 +115,8 @@ def search(request: SearchRequest, x_demo_principal: str | None = Header(default
 
 @app.post("/v1/answers", response_model=AnswerResponse)
 def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")) -> AnswerResponse:
-    response = answers.answer(require_principal(x_demo_principal), request)
+    principal = require_principal(x_demo_principal)
+    response = answers.answer(principal, request)
     if response.status is not AnswerStatus.ANSWERED:
         governance.record_unanswered(
             query_id=str(response.query_id),
@@ -125,6 +126,7 @@ def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default
                 else "no_result"
             ),
             safe_summary="No safe cited answer was available for this request.",
+            tenant_id=str(principal.tenant_id),
             query_fingerprint=" ".join(request.question.casefold().split()),
         )
     return response

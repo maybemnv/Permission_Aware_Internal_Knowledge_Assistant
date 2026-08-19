@@ -10,15 +10,15 @@ type AdminSurface = "connectors" | "permissions" | "unanswered" | "evaluation" |
 const surfaces: AdminSurface[] = ["connectors", "permissions", "unanswered", "evaluation", "audit"];
 
 function PrincipalSelector({ principal, onChange }: { principal: DemoPrincipal; onChange: (principal: DemoPrincipal) => void }) {
-  return <label className="source-chip">Fixture principal <select aria-label="Fixture principal" value={principal} onChange={(event) => onChange(event.target.value as DemoPrincipal)}><option value="allowed-user">regional employee</option><option value="denied-user">denied employee</option><option value="cross-tenant-user">cross-tenant employee</option><option value="admin-user">fixture administrator</option></select></label>;
+  return <label className="source-chip">Fixture principal <select aria-label="Fixture principal" value={principal} onChange={(event) => onChange(event.target.value as DemoPrincipal)}><option value="allowed-user">regional employee</option><option value="denied-user">denied employee</option><option value="unmapped-user">unmapped employee</option><option value="changed-group-user">changed-group employee</option><option value="cross-tenant-user">cross-tenant employee</option><option value="admin-user">fixture administrator</option></select></label>;
 }
 
 function ConnectorCard({ connector, onSync }: { connector: ConnectorStatus; onSync: (id: string) => void }) {
   return <article className="connector-card"><div className="card-heading"><h3>{sourceLabel(connector.sourceType)}</h3><StatusBadge state={connector.capabilityLabel} /></div><p>{connector.capabilityGaps.join(" · ") || "Fixture connector"}</p><div className="meta">{connector.itemCount} items · {connector.errorCount} errors</div><button className="secondary-button" type="button" onClick={() => onSync(connector.connectorId)}>Start fixture sync</button></article>;
 }
 
-export function ConnectorGrid() {
-  const [principal, setPrincipal] = useState<DemoPrincipal>("allowed-user");
+export function ConnectorGrid({ initialPrincipal = "allowed-user" }: { initialPrincipal?: DemoPrincipal }) {
+  const [principal, setPrincipal] = useState<DemoPrincipal>(initialPrincipal);
   const [surface, setSurface] = useState<AdminSurface>("connectors");
   const [connectors, setConnectors] = useState<ConnectorStatus[]>([]);
   const [unanswered, setUnanswered] = useState<UnansweredRecord[]>([]);
