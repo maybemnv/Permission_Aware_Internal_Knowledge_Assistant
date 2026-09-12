@@ -47,6 +47,37 @@ docker compose --profile fixture up --build
 Invoke-RestMethod http://localhost:8102/health/ready
 ```
 
+## Fixture seed and reset
+
+Fixture mode seeds deterministic in-memory data when the API starts. Restart the API to reset it:
+
+```powershell
+docker compose --profile fixture restart api
+```
+
+## Run the API, web, and worker
+
+The local fixture launcher runs the API and web workbench; no worker process or live connector is required. Worker modules are exercised by the Python tests.
+
+```powershell
+.\start-dev.ps1
+```
+
+## Tests and acceptance commands
+
+```powershell
+python -B -m pytest -q -p no:cacheprovider
+npm --prefix apps/web run lint
+npm --prefix apps/web run build
+npm --prefix apps/web run test:showcase
+# From apps/web, the equivalent commands are: npm run lint, npm run build, npm run dev.
+# The API equivalent is: uvicorn apps.api.main:app --host 127.0.0.1 --port 8102.
+```
+
+## Environment variables
+
+Fixture defaults use `APP_MODE=fixture`, `SEARCH_PROVIDER=fixture`, and `MODEL_PROVIDER=fixture`. `X-Demo-Principal` is a local fixture identity boundary, not production authentication.
+
 ## Verification
 
 ```powershell
@@ -76,6 +107,10 @@ tests/          Contract, security, retrieval, and acceptance tests
 ## Configuration and safety
 
 Fixture mode uses deterministic providers, an inline queue, and an in-memory store. Keep database URLs, model keys, queue credentials, connector credentials, and admin tokens server-side. Never commit `.env`, provider exports, or private keys. `X-Demo-Principal` is a fixture-only identity boundary and is not production authentication.
+
+## Known limitations
+
+Live connector ACL fidelity, production identity, durable PostgreSQL/search/job storage, model providers, performance targets, retention, and deployed infrastructure remain unverified and outside this local fixture demo.
 
 ## Documentation
 

@@ -5,9 +5,10 @@ import { sourceLabel } from "./types";
 interface AnswerPanelProps {
   answer: AnswerResponse;
   onOpenCitation: (citation: Citation) => void;
+  disabled: boolean;
 }
 
-export function AnswerPanel({ answer, onOpenCitation }: AnswerPanelProps) {
+export function AnswerPanel({ answer, onOpenCitation, disabled }: AnswerPanelProps) {
   return (
     <section className="panel answer-panel" aria-labelledby="answer-heading">
       <div className="answer-heading">
@@ -22,7 +23,7 @@ export function AnswerPanel({ answer, onOpenCitation }: AnswerPanelProps) {
         <div className="state-card" role="alert">
           <p className="data-label">Safe answer state</p>
           <p>{answer.status === "insufficient_context" ? "There is not enough authorized evidence to answer this question." : "The answer is not available from the current authorized context."}</p>
-          <button className="secondary-button" type="button">Retry from current sources</button>
+          <button className="secondary-button" type="button" disabled={disabled}>Retry from current sources</button>
         </div>
       ) : (
         <>
@@ -37,7 +38,7 @@ export function AnswerPanel({ answer, onOpenCitation }: AnswerPanelProps) {
           <ol className="citation-list" aria-label="Answer citations">
             {answer.citations.map((citation, index) => (
               <li key={citation.citationId}>
-                <button className="citation-button" type="button" onClick={() => onOpenCitation(citation)}>
+                <button className="citation-button" type="button" disabled={disabled} onClick={() => onOpenCitation(citation)}>
                   <span className="citation-marker" aria-hidden="true">{index + 1}</span>
                   <span>
                     <strong>{citation.title}</strong>

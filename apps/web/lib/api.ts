@@ -16,7 +16,10 @@ export function buildSearchRequest(query: string, sourceTypes: SearchRequest["so
 }
 
 export const api = {
-  setDemoPrincipal: (principal: DemoPrincipal) => fetch("/api/demo-principal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ principal }) }),
+  setDemoPrincipal: async (principal: DemoPrincipal) => {
+    const response = await fetch("/api/demo-principal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ principal }) });
+    if (!response.ok) throw new Error("The fixture principal is unavailable.");
+  },
   search: (query: string) => request<SearchResponse>("/v1/search", { method: "POST", body: JSON.stringify({ query }) }),
   answer: (question: string, queryId?: string) => request<AnswerResponse>("/v1/answers", { method: "POST", body: JSON.stringify({ question, queryId }) }),
   preview: (resultId: string) => request<SourcePreviewData>(`/v1/results/${encodeURIComponent(resultId)}/preview`),
