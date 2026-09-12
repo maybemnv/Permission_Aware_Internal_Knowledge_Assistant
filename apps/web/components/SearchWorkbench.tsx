@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { AnswerPanel } from "./AnswerPanel";
 import { SourcePreview } from "./SourcePreview";
@@ -11,12 +11,12 @@ import { lifecycleState, sourceLabel, type AnswerResponse, type Citation, type D
 const canonicalQuestion = "What is the travel reimbursement policy for my region and role?";
 const stateReference: UiState[] = ["loading", "stale", "deleted", "pending_recheck", "unavailable", "insufficient_context", "refused", "failed", "no_accessible_context"];
 
-function PrincipalSelector({ principal, onChange }: { principal: DemoPrincipal; onChange: (principal: DemoPrincipal) => void }) {
-  return <label className="source-chip">Fixture principal <select aria-label="Fixture principal" value={principal} onChange={(event) => onChange(event.target.value as DemoPrincipal)}><option value="allowed-user">regional employee</option><option value="denied-user">denied employee</option><option value="unmapped-user">unmapped employee</option><option value="changed-group-user">changed-group employee</option><option value="cross-tenant-user">cross-tenant employee</option><option value="admin-user">fixture administrator</option></select></label>;
+function PrincipalSelector({ principal, onChange, disabled = false }: { principal: DemoPrincipal; onChange: (principal: DemoPrincipal) => void; disabled?: boolean }) {
+  return <label className="source-chip">Fixture principal <select aria-label="Fixture principal" value={principal} disabled={disabled} onChange={(event) => onChange(event.target.value as DemoPrincipal)}><option value="allowed-user">regional employee</option><option value="denied-user">denied employee</option><option value="unmapped-user">unmapped employee</option><option value="changed-group-user">changed-group employee</option><option value="cross-tenant-user">cross-tenant employee</option><option value="admin-user">fixture administrator</option></select></label>;
 }
 
-function Topbar({ principal, onPrincipalChange }: { principal: DemoPrincipal; onPrincipalChange: (principal: DemoPrincipal) => void }) {
-  return <header className="topbar"><div className="brand-lockup"><Link className="brand-mark" href="/">Evidence Desk</Link><p className="eyebrow">Permission-aware internal knowledge</p></div><nav className="topnav" aria-label="Primary navigation"><Link className="nav-link" href="/" aria-current="page">Workbench</Link><Link className="nav-link" href="/admin">Admin surfaces</Link><PrincipalSelector principal={principal} onChange={onPrincipalChange} /></nav></header>;
+function Topbar({ principal, onPrincipalChange, switching }: { principal: DemoPrincipal; onPrincipalChange: (principal: DemoPrincipal) => void; switching: boolean }) {
+  return <header className="topbar"><div className="brand-lockup"><Link className="brand-mark" href="/">Evidence Desk</Link><p className="eyebrow">Permission-aware internal knowledge</p></div><nav className="topnav" aria-label="Primary navigation"><Link className="nav-link" href="/" aria-current="page">Workbench</Link><Link className="nav-link" href="/admin">Admin surfaces</Link><PrincipalSelector principal={principal} onChange={onPrincipalChange} disabled={switching} /></nav></header>;
 }
 
 function SearchForm({ query, onQueryChange, onSubmit }: { query: string; onQueryChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
@@ -35,6 +35,7 @@ function ResultsView({ search, state, onOpenPreview, onAnswer }: { search: Searc
 }
 
 export function SearchWorkbench({ initialPrincipal = "allowed-user" }: { initialPrincipal?: DemoPrincipal }) {
+  const requestGeneration = useRef(0);
   const [principal, setPrincipal] = useState<DemoPrincipal>(initialPrincipal);
   const [query, setQuery] = useState(canonicalQuestion);
   const [phase, setPhase] = useState<"search" | "results" | "answer">("search");
@@ -42,11 +43,12 @@ export function SearchWorkbench({ initialPrincipal = "allowed-user" }: { initial
   const [search, setSearch] = useState<SearchResponse | null>(null);
   const [answer, setAnswer] = useState<AnswerResponse | null>(null);
   const [preview, setPreview] = useState<SourcePreviewData | null>(null);
+  const [switching, setSwitching] = useState(false);
 
-  const changePrincipal = async (next: DemoPrincipal) => { setPrincipal(next); await api.setDemoPrincipal(next); setSearch(null); setAnswer(null); setPreview(null); setPhase("search"); };
-  const runSearch = async (event?: FormEvent<HTMLFormElement>, question?: string) => { event?.preventDefault(); const effective = question ?? query; setQuery(effective); setRequestState("loading"); setPhase("results"); setPreview(null); try { setSearch(await api.search(effective)); setRequestState("fresh"); } catch { setSearch(null); setRequestState("failed"); } };
-  const generateAnswer = async () => { setRequestState("loading"); try { setAnswer(await api.answer(query, search?.queryId)); setPhase("answer"); setRequestState("fresh"); } catch { setRequestState("failed"); } };
-  const openPreview = async (result: SearchResult | Citation) => { try { setPreview(await api.preview("resultId" in result ? result.resultId : `result-${result.itemId}`)); } catch { setPreview(null); setRequestState("unavailable"); } };
+  const changePrincipal = async (next: DemoPrincipal) => { const previous = principal; const generation = ++requestGeneration.current; setPrincipal(next); setSearch(null); setAnswer(null); setPreview(null); setPhase("search"); setSwitching(true); try { await api.setDemoPrincipal(next); } catch { if (requestGeneration.current === generation) setPrincipal(previous); } finally { if (requestGeneration.current === generation) setSwitching(false); } };
+  const runSearch = async (event?: FormEvent<HTMLFormElement>, question?: string) => { event?.preventDefault(); const effective = question ?? query; const generation = requestGeneration.current; setQuery(effective); setRequestState("loading"); setPhase("results"); setPreview(null); try { const response = await api.search(effective); if (requestGeneration.current === generation) { setSearch(response); setRequestState("fresh"); } } catch { if (requestGeneration.current === generation) { setSearch(null); setRequestState("failed"); } } };
+  const generateAnswer = async () => { const generation = requestGeneration.current; setRequestState("loading"); try { const response = await api.answer(query, search?.queryId); if (requestGeneration.current === generation) { setAnswer(response); setPhase("answer"); setRequestState("fresh"); } } catch { if (requestGeneration.current === generation) setRequestState("failed"); } };
+  const openPreview = async (result: SearchResult | Citation) => { const generation = requestGeneration.current; try { const response = await api.preview("resultId" in result ? result.resultId : `result-${result.itemId}`); if (requestGeneration.current === generation) setPreview(response); } catch { if (requestGeneration.current === generation) { setPreview(null); setRequestState("unavailable"); } } };
 
-  return <><Topbar principal={principal} onPrincipalChange={changePrincipal} />{phase === "search" && <section className="hero"><div className="hero-copy"><p className="eyebrow">Search / evidence first</p><h1>Find the answer. See why it is safe.</h1><p>Only server-authorized context reaches the browser.</p><SearchForm query={query} onQueryChange={setQuery} onSubmit={runSearch} /></div><aside className="hero-side"><StatusBadge state="fixture" /><button className="secondary-button" type="button" onClick={() => void runSearch(undefined, canonicalQuestion)}>Use the seeded travel question</button></aside></section>}{phase === "results" && <ResultsView search={search} state={requestState} onOpenPreview={(result) => void openPreview(result)} onAnswer={() => void generateAnswer()} />}{phase === "answer" && answer && <><div className="page-intro"><div><p className="eyebrow">Answer / {answer.answerId}</p><h1>Evidence you can inspect</h1><p>{query}</p></div><StatusBadge state={answer.status} /></div><div className="workspace-grid"><main><AnswerPanel answer={answer} onOpenCitation={(citation) => void openPreview(citation)} /></main><SourcePreview preview={preview} onClose={() => setPreview(null)} /></div></>}<section className="panel"><p className="eyebrow">Interaction contract</p><div className="status-reference">{stateReference.map((state) => <StatusBadge key={state} state={state} />)}</div></section></>;
+  return <><Topbar principal={principal} onPrincipalChange={changePrincipal} switching={switching} />{phase === "search" && <section className="hero"><div className="hero-copy"><p className="eyebrow">Search / evidence first</p><h1>Find the answer. See why it is safe.</h1><p>Only server-authorized context reaches the browser.</p><SearchForm query={query} onQueryChange={setQuery} onSubmit={runSearch} /></div><aside className="hero-side"><StatusBadge state="fixture" /><button className="secondary-button" type="button" onClick={() => void runSearch(undefined, canonicalQuestion)}>Use the seeded travel question</button></aside></section>}{phase === "results" && <ResultsView search={search} state={requestState} onOpenPreview={(result) => void openPreview(result)} onAnswer={() => void generateAnswer()} />}{phase === "answer" && answer && <><div className="page-intro"><div><p className="eyebrow">Answer / {answer.answerId}</p><h1>Evidence you can inspect</h1><p>{query}</p></div><StatusBadge state={answer.status} /></div><div className="workspace-grid"><main><AnswerPanel answer={answer} onOpenCitation={(citation) => void openPreview(citation)} /></main><SourcePreview preview={preview} onClose={() => setPreview(null)} /></div></>}<section className="panel"><p className="eyebrow">Interaction contract</p><div className="status-reference">{stateReference.map((state) => <StatusBadge key={state} state={state} />)}</div></section></>;
 }

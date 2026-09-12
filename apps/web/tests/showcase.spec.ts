@@ -69,3 +69,46 @@ test("primary controls are keyboard reachable and mobile layout does not overflo
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBeFalsy();
 });
+
+test("principal switches discard delayed search responses", async ({ page }) => {
+  await page.route("**/api/backend/v1/search", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  await page.goto("/");
+  await page.getByLabel("Ask a question").fill(canonicalQuestion);
+  await page.getByRole("button", { name: "Search evidence" }).click();
+  await page.getByLabel("Fixture principal").selectOption("denied-user");
+  await expect(page.getByText("No accessible context is available for this request.")).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await expect(page.getByText("Travel reimbursement policy", { exact: true })).toHaveCount(0);
+});
+
+test("principal switches discard delayed answer and preview responses", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Ask a question").fill(canonicalQuestion);
+  await page.getByRole("button", { name: "Search evidence" }).click();
+  await expect(page.getByRole("heading", { name: "Travel reimbursement policy", exact: true })).toBeVisible();
+  await page.route("**/api/backend/v1/answers", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  await page.getByRole("button", { name: "Generate cited answer" }).click();
+  await page.getByLabel("Fixture principal").selectOption("denied-user");
+  await page.waitForTimeout(400);
+  await expect(page.getByText("Supporting citations")).toHaveCount(0);
+
+  await page.goto("/");
+  await page.getByLabel("Fixture principal").selectOption("allowed-user");
+  await page.getByLabel("Ask a question").fill(canonicalQuestion);
+  await page.getByRole("button", { name: "Search evidence" }).click();
+  await expect(page.getByRole("heading", { name: "Travel reimbursement policy", exact: true })).toBeVisible();
+  await page.route("**/api/backend/v1/results/*/preview", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  await page.getByRole("button", { name: "Open safe preview" }).first().click();
+  await page.getByLabel("Fixture principal").selectOption("denied-user");
+  await page.waitForTimeout(400);
+  await expect(page.getByRole("heading", { name: "Verify the evidence" })).toHaveCount(0);
+});
