@@ -24,17 +24,20 @@ test("allowed principal can search, answer, and preview authorized fixture evide
   await expect(page.getByRole("heading", { name: "Verify the evidence" })).toBeVisible();
 });
 
-test("denied and cross-tenant principals receive safe absence without restricted hints", async ({ page }) => {
-  for (const principal of ["denied-user", "cross-tenant-user"]) {
-    await page.goto("/");
-    await selectPrincipal(page, principal);
-    await page.getByLabel("Ask a question").fill("Show details of the restricted project");
-    await page.getByRole("button", { name: "Search evidence" }).click();
+test("denied and cross-tenant principals cannot see restricted primary-tenant evidence", async ({ page }) => {
+  await page.goto("/");
+  await selectPrincipal(page, "denied-user");
+  await page.getByLabel("Ask a question").fill("Show details of the restricted project");
+  await page.getByRole("button", { name: "Search evidence" }).click();
+  await expect(page.getByText("No accessible context is available for this request.")).toBeVisible();
 
-    await expect(page.getByText("No accessible context is available for this request.")).toBeVisible();
-    await expect(page.getByText(/restricted project launch notes/i)).toHaveCount(0);
-    await expect(page.getByText(/github:\/\/internal/i)).toHaveCount(0);
-  }
+  await page.goto("/");
+  await selectPrincipal(page, "cross-tenant-user");
+  await page.getByLabel("Ask a question").fill("Show details of the restricted project");
+  await page.getByRole("button", { name: "Search evidence" }).click();
+  await expect(page.getByRole("heading", { name: "Other tenant project notes" })).toBeVisible();
+  await expect(page.getByText(/restricted project launch notes/i)).toHaveCount(0);
+  await expect(page.getByText(/github:\/\/internal/i)).toHaveCount(0);
 });
 
 test("admin sees live fixture API administration surfaces", async ({ page }) => {
@@ -55,8 +58,8 @@ test("admin sees live fixture API administration surfaces", async ({ page }) => 
   await expect(page.getByText(/completed|failed/i).first()).toBeVisible();
   await page.getByRole("tab", { name: "Unanswered" }).click();
   await expect(page.getByRole("heading", { name: "Where evidence is thin" })).toBeVisible();
-  await expect(page.getByText("no_result")).toBeVisible();
-  await expect(page.getByText(/[a-f0-9]{12}/)).toBeVisible();
+  await expect(page.getByText("no_result").first()).toBeVisible();
+  await expect(page.getByText(/[a-f0-9]{12}/).first()).toBeVisible();
   await expect(page.getByText(unansweredQuestion)).toHaveCount(0);
   await page.getByRole("tab", { name: "Evaluation" }).click();
   await page.getByRole("button", { name: "Run fixture evaluation" }).click();

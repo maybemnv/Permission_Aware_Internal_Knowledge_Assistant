@@ -11,13 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
-      - name: Install Python package
-        run: python -m pip install -e ".[dev]"
+          enable-cache: true
+      - run: uv sync --frozen --extra dev
+      - name: Lint Python
+        run: uv run ruff check apps connectors workers tests --select E9,F
       - name: Run Python and acceptance tests
-        run: python -m pytest -q
+        run: uv run pytest -q
 
   web:
     runs-on: ubuntu-latest
@@ -35,5 +36,51 @@ jobs:
         run: npm ci
       - name: Lint web
         run: npm run lint
+      - name: Typecheck web
+        run: npx tsc --noEmit
       - name: Build web
         run: npm run build
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: uv sync --frozen --extra dev
+      - run: npm ci
+        working-directory: apps/web
+      - run: npm run build
+        working-directory: apps/web
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm run test:showcase
+        working-directory: apps/web
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag knowledge-api:ci .
+      - run: docker build --tag knowledge-web:ci apps/web
+      - name: Start fixture containers
+        run: |
+          docker run --detach --name knowledge-api --publish 8102:8102 --env APP_ENV=local-fixture --env APP_MODE=fixture knowledge-api:ci
+          docker run --detach --name knowledge-web --publish 3102:3102 --env APP_ENV=local-fixture knowledge-web:ci
+      - name: Verify container boot
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8102/health/ready && curl --fail --silent http://127.0.0.1:3102; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs knowledge-api
+          docker logs knowledge-web
+          exit 1
+      - if: always()
+        run: docker rm --force knowledge-api knowledge-web

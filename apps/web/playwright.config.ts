@@ -3,6 +3,7 @@ import path from "path";
 
 export default defineConfig({
   testDir: "./tests",
+  workers: 1,
   timeout: 30_000,
   use: { baseURL: "http://127.0.0.1:3102", trace: "retain-on-failure" },
   projects: [

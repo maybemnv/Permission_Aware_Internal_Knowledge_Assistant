@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from hashlib import sha256
-from uuid import uuid4
 
 from apps.api.data.fixture_store import FixtureStore
 from apps.api.domain.contracts import PrincipalContext, UnansweredRecord
