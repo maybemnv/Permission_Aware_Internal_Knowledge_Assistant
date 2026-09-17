@@ -13,14 +13,16 @@ export default defineConfig({
     {
       command: "python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8102",
       cwd: path.resolve(__dirname, "../.."),
+      env: { ...process.env, APP_ENV: "local-fixture", APP_MODE: "fixture" },
       url: "http://127.0.0.1:8102/health/ready",
-      reuseExistingServer: true,
+      reuseExistingServer: !process.env.CI,
     },
     {
       command: "npm run start -- --hostname 127.0.0.1 --port 3102",
       cwd: __dirname,
+      env: { ...process.env, APP_ENV: "local-fixture" },
       url: "http://127.0.0.1:3102",
-      reuseExistingServer: true,
+      reuseExistingServer: !process.env.CI,
     },
   ],
 });
