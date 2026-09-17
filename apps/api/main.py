@@ -101,7 +101,13 @@ def health() -> HealthResponse:
 @app.get("/health/ready", response_model=ReadinessResponse)
 def readiness() -> ReadinessResponse:
     fixture_mode = settings.app_mode == "fixture"
-    database_state = "unavailable" if fixture_mode else ("ok" if settings.database_url else "degraded")
+    database_state = "unavailable"
+    if not fixture_mode:
+        try:
+            store.ping()
+            database_state = "ok"
+        except Exception:  # noqa: BLE001 - readiness must fail closed
+            database_state = "unavailable"
     status_value = "ready" if fixture_mode or database_state == "ok" else "degraded"
     return ReadinessResponse(
         status=status_value,
@@ -109,9 +115,9 @@ def readiness() -> ReadinessResponse:
             "api": "ok",
             "fixture_store": "ok" if fixture_mode else "unavailable",
             "database": database_state,
-            "worker": "ok" if settings.queue_provider == "inline" else "degraded",
+            "worker": "ok" if fixture_mode else "configured",
             "connectors": "ok",
-            "index": "ok" if settings.search_provider == "fixture" else "degraded",
+            "index": "ok" if fixture_mode else "configured",
         },
     )
 

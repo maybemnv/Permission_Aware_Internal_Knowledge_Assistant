@@ -23,6 +23,11 @@ class PostgresStore:
 
         return psycopg.connect(self.database_url)
 
+    def ping(self) -> None:
+        """Fail readiness when the configured database cannot be reached."""
+        with self._connect() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+
     def get_principal(self, principal_key: str) -> PrincipalContext | None:
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
