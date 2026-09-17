@@ -8,6 +8,7 @@ and production require `APP_MODE=postgres`, a PostgreSQL/pgvector
 ```powershell
 uv run --extra postgres python -c "from pathlib import Path; import psycopg; psycopg.connect(__import__('os').environ['DATABASE_URL']).close()"
 psql "$env:DATABASE_URL" -f db/migrations/001_initial.sql
+psql "$env:DATABASE_URL" -f db/migrations/002_production_hardening.sql
 uv run uvicorn apps.api.main:app --host 0.0.0.0 --port ${env:PORT ?? 8102}
 ```
 
