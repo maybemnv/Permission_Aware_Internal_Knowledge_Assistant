@@ -41,6 +41,7 @@ services:
     profiles: ["fixture"]
     build: .
     environment:
+      APP_ENV: local-fixture
       APP_MODE: fixture
       SEARCH_PROVIDER: fixture
       QUEUE_PROVIDER: inline
@@ -57,6 +58,7 @@ services:
     profiles: ["fixture"]
     build: ./apps/web
     environment:
+      APP_ENV: local-fixture
       API_ORIGIN: http://api:8102
     ports:
       - "3102:3102"

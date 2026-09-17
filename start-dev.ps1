@@ -26,10 +26,10 @@ function Start-Terminal {
     )
 }
 
-$apiCommand = "`$env:APP_MODE = 'fixture'; `$env:SEARCH_PROVIDER = 'fixture'; `$env:QUEUE_PROVIDER = 'inline'; `$env:MODEL_PROVIDER = 'fixture'; uv run uvicorn apps.api.main:app --host 127.0.0.1 --port 8102"
+$apiCommand = "`$env:APP_ENV = 'local-fixture'; `$env:APP_MODE = 'fixture'; `$env:SEARCH_PROVIDER = 'fixture'; `$env:QUEUE_PROVIDER = 'inline'; `$env:MODEL_PROVIDER = 'fixture'; uv run uvicorn apps.api.main:app --host 127.0.0.1 --port 8102"
 $webDirectory = Join-Path $Root "apps\web"
 Start-Terminal "Knowledge Assistant API" $Root $apiCommand
-Start-Terminal "Knowledge Assistant Web" $webDirectory "npm.cmd run dev -- --hostname 127.0.0.1 --port 3102"
+Start-Terminal "Knowledge Assistant Web" $webDirectory "`$env:APP_ENV = 'local-fixture'; npm.cmd run dev -- --hostname 127.0.0.1 --port 3102"
 
 Write-Host "Knowledge Assistant starting at http://127.0.0.1:3102"
 Write-Host "API health: http://127.0.0.1:8102/health/ready"

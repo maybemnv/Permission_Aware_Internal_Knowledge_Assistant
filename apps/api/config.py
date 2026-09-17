@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
-    app_env: str = "demo"
+    app_env: str = "production"
     app_mode: str = "fixture"
     demo_principal: str = "allowed-user"
     search_provider: str = "fixture"
@@ -21,8 +21,8 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> "Settings":
-        return cls(
-            app_env=os.getenv("APP_ENV", "demo"),
+        settings = cls(
+            app_env=os.getenv("APP_ENV", "production").strip().lower(),
             app_mode=os.getenv("APP_MODE", "fixture"),
             demo_principal=os.getenv("DEMO_PRINCIPAL", "allowed-user"),
             search_provider=os.getenv("SEARCH_PROVIDER", "fixture"),
@@ -35,3 +35,14 @@ class Settings:
                 "NEXT_PUBLIC_API_BASE_URL", "/api"
             ),
         )
+        settings.validate_runtime()
+        return settings
+
+    def validate_runtime(self) -> None:
+        if self.app_env not in {"local-fixture", "staging", "production"}:
+            raise ValueError("APP_ENV must be local-fixture, staging, or production")
+        if self.app_env == "local-fixture":
+            if self.app_mode != "fixture":
+                raise ValueError("APP_MODE=fixture requires APP_ENV=local-fixture")
+            return
+        raise ValueError("knowledge assistant runtime is fixture-only; use APP_ENV=local-fixture")
