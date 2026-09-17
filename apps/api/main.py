@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from apps.api.config import Settings
 from apps.api.data.fixture_store import FixtureStore
+from apps.api.data.postgres_store import PostgresStore
 from apps.api.domain.contracts import (
     AnswerRequest,
     AnswerResponse,
@@ -38,7 +39,7 @@ from workers.sync import SyncCoordinator
 
 
 settings = Settings.from_env()
-store = FixtureStore()
+store = FixtureStore() if settings.app_mode == "fixture" else PostgresStore(settings.database_url or "")
 policy = AuthorizationPolicy()
 audit = AuditService()
 retrieval = RetrievalService(store, policy, audit)
@@ -58,8 +59,15 @@ app = FastAPI(
 )
 
 
-def require_principal(demo_principal: str | None) -> PrincipalContext:
-    principal = store.get_principal(demo_principal or "")
+def require_principal(demo_principal: str | None, authorization: str | None = None) -> PrincipalContext:
+    if settings.app_mode == "fixture":
+        principal_key = demo_principal or ""
+    else:
+        expected = f"Bearer {__import__('os').environ.get('AUTH_BEARER_TOKEN', '')}"
+        if authorization != expected:
+            raise HTTPException(status_code=401, detail="authenticated principal required")
+        principal_key = __import__('os').environ["AUTH_PRINCIPAL_KEY"]
+    principal = store.get_principal(principal_key)
     if principal is None:
         error = ApiError(
             code=ApiErrorCode.AUTHENTICATION_REQUIRED,
@@ -71,8 +79,8 @@ def require_principal(demo_principal: str | None) -> PrincipalContext:
     return principal
 
 
-def require_admin(demo_principal: str | None) -> PrincipalContext:
-    principal = require_principal(demo_principal)
+def require_admin(demo_principal: str | None, authorization: str | None = None) -> PrincipalContext:
+    principal = require_principal(demo_principal, authorization)
     if not principal.is_administrator:
         error = ApiError(
             code=ApiErrorCode.AUTHORIZATION_DENIED,
@@ -109,13 +117,13 @@ def readiness() -> ReadinessResponse:
 
 
 @app.post("/v1/search", response_model=SearchResponse)
-def search(request: SearchRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")) -> SearchResponse:
-    return retrieval.search(require_principal(x_demo_principal), request)
+def search(request: SearchRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)) -> SearchResponse:
+    return retrieval.search(require_principal(x_demo_principal, authorization), request)
 
 
 @app.post("/v1/answers", response_model=AnswerResponse)
-def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")) -> AnswerResponse:
-    principal = require_principal(x_demo_principal)
+def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)) -> AnswerResponse:
+    principal = require_principal(x_demo_principal, authorization)
     response = answers.answer(principal, request)
     if response.status is not AnswerStatus.ANSWERED:
         governance.record_unanswered(
@@ -133,16 +141,16 @@ def answer(request: AnswerRequest, x_demo_principal: str | None = Header(default
 
 
 @app.get("/v1/results/{result_id}/preview", response_model=SourcePreview)
-def preview(result_id: str, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")) -> SourcePreview:
-    result = previews.open(require_principal(x_demo_principal), result_id)
+def preview(result_id: str, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)) -> SourcePreview:
+    result = previews.open(require_principal(x_demo_principal, authorization), result_id)
     if isinstance(result, ApiError):
         return JSONResponse(status_code=status.HTTP_403_FORBIDDEN, content=result.model_dump(mode="json", by_alias=True))
     return result
 
 
 @app.post("/v1/feedback")
-def feedback(request: FeedbackRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")) -> dict[str, str]:
-    principal = require_principal(x_demo_principal)
+def feedback(request: FeedbackRequest, x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)) -> dict[str, str]:
+    principal = require_principal(x_demo_principal, authorization)
     audit.append(
         AuditEvent(
             event_id=f"event-feedback-{request.query_id}",
@@ -158,8 +166,8 @@ def feedback(request: FeedbackRequest, x_demo_principal: str | None = Header(def
 
 
 @app.get("/v1/connectors")
-def connector_status(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")):
-    require_admin(x_demo_principal)
+def connector_status(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)):
+    require_admin(x_demo_principal, authorization)
     return connector_registry.statuses()
 
 
@@ -168,8 +176,9 @@ def start_sync(
     connector_id: str,
     request: SyncStartRequest,
     x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"),
+    authorization: str | None = Header(default=None),
 ):
-    require_admin(x_demo_principal)
+    require_admin(x_demo_principal, authorization)
     return syncs.start(connector_id, request.mode, request.idempotency_key)
 
 
@@ -177,20 +186,21 @@ def start_sync(
 def sync_history(
     connector_id: str,
     x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"),
+    authorization: str | None = Header(default=None),
 ):
-    require_admin(x_demo_principal)
+    require_admin(x_demo_principal, authorization)
     return [run for run in syncs.runs.values() if run.connector_id == connector_id]
 
 
 @app.get("/v1/admin/unanswered")
-def unanswered(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")):
-    principal = require_admin(x_demo_principal)
+def unanswered(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)):
+    principal = require_admin(x_demo_principal, authorization)
     return governance.unanswered(principal)
 
 
 @app.get("/v1/admin/evaluations")
-def evaluation_history(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")):
-    require_admin(x_demo_principal)
+def evaluation_history(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)):
+    require_admin(x_demo_principal, authorization)
     return evaluations.runs
 
 
@@ -198,12 +208,13 @@ def evaluation_history(x_demo_principal: str | None = Header(default=None, alias
 def start_evaluation(
     request: EvaluationStartRequest,
     x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"),
+    authorization: str | None = Header(default=None),
 ):
-    require_admin(x_demo_principal)
+    require_admin(x_demo_principal, authorization)
     return evaluations.run(request.dataset_version)
 
 
 @app.get("/v1/admin/audit")
-def audit_history(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal")):
-    principal = require_admin(x_demo_principal)
+def audit_history(x_demo_principal: str | None = Header(default=None, alias="X-Demo-Principal"), authorization: str | None = Header(default=None)):
+    principal = require_admin(x_demo_principal, authorization)
     return [event for event in audit.events if event.tenant_id == principal.tenant_id]

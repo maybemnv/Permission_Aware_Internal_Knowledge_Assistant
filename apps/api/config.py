@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
-    app_env: str = "production"
+    app_env: str = "local-fixture"
     app_mode: str = "fixture"
     demo_principal: str = "allowed-user"
     search_provider: str = "fixture"
@@ -22,8 +22,8 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         settings = cls(
-            app_env=os.getenv("APP_ENV", "production").strip().lower(),
-            app_mode=os.getenv("APP_MODE", "fixture"),
+            app_env=os.getenv("APP_ENV", "local-fixture").strip().lower(),
+            app_mode=os.getenv("APP_MODE", "fixture").strip().lower(),
             demo_principal=os.getenv("DEMO_PRINCIPAL", "allowed-user"),
             search_provider=os.getenv("SEARCH_PROVIDER", "fixture"),
             queue_provider=os.getenv("QUEUE_PROVIDER", "inline"),
@@ -45,4 +45,13 @@ class Settings:
             if self.app_mode != "fixture":
                 raise ValueError("APP_MODE=fixture requires APP_ENV=local-fixture")
             return
-        raise ValueError("knowledge assistant runtime is fixture-only; use APP_ENV=local-fixture")
+        if self.app_mode != "postgres":
+            raise ValueError("APP_MODE=postgres is required outside APP_ENV=local-fixture")
+        if not self.database_url or not self.database_url.startswith(("postgresql://", "postgresql+psycopg://")):
+            raise ValueError("DATABASE_URL must be a PostgreSQL URL outside APP_ENV=local-fixture")
+        if self.search_provider != "postgres":
+            raise ValueError("SEARCH_PROVIDER=postgres is required outside APP_ENV=local-fixture")
+        if self.queue_provider not in {"redis", "celery"} or not self.redis_url:
+            raise ValueError("REDIS_URL and a durable queue provider are required outside APP_ENV=local-fixture")
+        if not os.getenv("AUTH_BEARER_TOKEN") or not os.getenv("AUTH_PRINCIPAL_KEY"):
+            raise ValueError("AUTH_BEARER_TOKEN and AUTH_PRINCIPAL_KEY are required outside APP_ENV=local-fixture")
