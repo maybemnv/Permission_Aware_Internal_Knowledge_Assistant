@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from apps.api.data.fixture_store import FixtureStore
 from apps.api.domain.contracts import (
-    AccessDecision,
     AuditEvent,
     FreshnessSummary,
     PrincipalContext,

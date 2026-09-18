@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from apps.api.data.fixture_store import FixtureStore
 from apps.api.domain.contracts import (
     AccessDecision,
     ApiError,
     ApiErrorCode,
-    LifecycleState,
     PrincipalContext,
     SourcePreview,
 )

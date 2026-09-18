@@ -5,6 +5,9 @@ const apiOrigin = process.env.API_ORIGIN ?? "http://127.0.0.1:8102";
 const principals = new Set(["allowed-user", "denied-user", "unmapped-user", "changed-group-user", "cross-tenant-user", "admin-user"]);
 
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
+  if (process.env.APP_ENV !== "local-fixture") {
+    return NextResponse.json({ error: "The fixture API is unavailable." }, { status: 404 });
+  }
   const { path } = await context.params;
   const principal = (await cookies()).get("demo_principal")?.value ?? "allowed-user";
   if (!principals.has(principal)) return NextResponse.json({ error: "Fixture principal is unavailable." }, { status: 401 });

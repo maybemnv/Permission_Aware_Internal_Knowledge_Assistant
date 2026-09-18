@@ -70,8 +70,9 @@ python -B -m pytest -q -p no:cacheprovider
 npm --prefix apps/web run lint
 npm --prefix apps/web run build
 npm --prefix apps/web run test:showcase
-# From apps/web, the equivalent commands are: npm run lint, npm run build, npm run dev.
-# The API equivalent is: uvicorn apps.api.main:app --host 127.0.0.1 --port 8102.
+# From apps/web, the equivalent commands are: npm run lint, npm run build, and
+# `$env:APP_ENV = "local-fixture"; npm run dev`.
+# The API equivalent is: `$env:APP_ENV = "local-fixture"; uvicorn apps.api.main:app --host 127.0.0.1 --port 8102`.
 ```
 
 ## Environment variables

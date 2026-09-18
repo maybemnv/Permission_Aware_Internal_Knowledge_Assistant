@@ -11,7 +11,6 @@ from apps.api.domain.contracts import (
     AnswerRequest,
     AnswerResponse,
     AnswerStatus,
-    ApiError,
     Citation,
     Freshness,
     PrincipalContext,
