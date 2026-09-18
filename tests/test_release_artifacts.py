@@ -31,3 +31,10 @@ def test_no_real_secret_values_are_present_in_release_docs() -> None:
         assert "sk-proj-" not in content
         assert "-----begin private key-----" not in content
         assert "ghp_" not in content
+
+
+def test_readme_direct_fixture_commands_select_local_fixture() -> None:
+    content = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert '$env:APP_ENV = "local-fixture"; npm run dev' in content
+    assert '$env:APP_ENV = "local-fixture"; uvicorn apps.api.main:app' in content
